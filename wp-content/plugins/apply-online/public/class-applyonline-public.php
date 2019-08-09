@@ -75,7 +75,10 @@ class Applyonline_Public {
 		 * class.
 		 */
 
-                wp_enqueue_style( $this->plugin_name.'-BS', plugin_dir_url( __FILE__ ) . 'css/bootstrap.min.css', array(), $this->version, 'all' );
+        wp_enqueue_style( 'jquery.fileupload.css', plugin_dir_url( __FILE__ ) . 'css/jquery.fileupload.css', array(), $this->version, 'all' );
+        wp_enqueue_style( 'jquery.fileupload-ui.css', plugin_dir_url( __FILE__ ) . 'css/jquery.fileupload-ui.css', array(), $this->version, 'all' );
+
+        wp_enqueue_style( $this->plugin_name.'-BS', plugin_dir_url( __FILE__ ) . 'css/bootstrap.min.css', array(), $this->version, 'all' );
                 wp_enqueue_style('jquery-ui-css', 'https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css');
 		wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/applyonline-public.css', array(), $this->version, 'all' );
 	}
@@ -109,7 +112,23 @@ class Applyonline_Public {
                     'aol_public', 
                     apply_filters('aol_js_vars', $aol_js_vars)
                 );
-	}
+        wp_enqueue_script('jquery.ui.widget.js',plugin_dir_url( __FILE__ ) . 'js/vendor/'.'jquery.ui.widget.js',null,'111',true);
+
+//        wp_enqueue_script('tmpl.js',plugin_dir_url( __FILE__ ) . 'js/'.'tmpl.js',null,'111',true);
+        wp_enqueue_script('jquery.blueimp-gallery.min.js',plugin_dir_url( __FILE__ ) . '/js/'.'jquery.blueimp-gallery.min.js',null,'111',true);
+        wp_enqueue_script('load-image.min.js',plugin_dir_url( __FILE__ ) . 'js/'.'load-image.min.js',null,'111',true);
+        wp_enqueue_script('canvas-to-blob.js',plugin_dir_url( __FILE__ ) . 'js/'.'canvas-to-blob.js',null,'111',true);
+
+        wp_enqueue_script('jquery.iframe-transport.js',plugin_dir_url( __FILE__ ) . 'js/'.'jquery.iframe-transport.js',null,'111',true);
+        wp_enqueue_script('jquery.fileupload.js',plugin_dir_url( __FILE__ ) . 'js/'.'jquery.fileupload.js',null,'111',true);
+        wp_enqueue_script('jquery.fileupload-process.js',plugin_dir_url( __FILE__ ) . 'js/'.'jquery.fileupload-process.js',null,'111',true);
+        wp_enqueue_script('jquery.fileupload-image.js',plugin_dir_url( __FILE__ ) . 'js/'.'jquery.fileupload-image.js',null,'111',true);
+        wp_enqueue_script('jquery.fileupload-jquery-ui.js',plugin_dir_url( __FILE__ ) . 'js/'.'jquery.fileupload-jquery-ui.js',null,'111',true);
+        wp_enqueue_script('jquery.fileupload-ui.js',plugin_dir_url( __FILE__ ) . 'js/'.'jquery.fileupload-ui.js',null,'111',true);
+        wp_enqueue_script('jquery.valid.js',plugin_dir_url( __FILE__ ) . 'js/'.'jquery.fileupload-validate.js',null,'111',true);
+        wp_enqueue_script('jquery-ui','https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js',null,'111',true);
+
+    }
         
         public function check_ad_closing_status($query){
             $types = get_aol_ad_types();
@@ -161,7 +180,8 @@ class SinglePostTemplate{
                     if(!isset($fields[$i]['required'])) $fields[$i]['required'] = 1; //Fix for older versions (prior to 1.6.1 when REQUIRED field was not available)
                     if(isset($fields[$i]['type']) AND $fields[$i]['type']=='seprator') $fields[$i]['type'] = 'separator'; //Fixed bug before 1.9.6, spell mistake in the key.
                     $i++;
-            } 
+            }
+           // var_dump($fields);die;
             return $fields;
             //Debuggin
         }        
@@ -182,13 +202,17 @@ class SinglePostTemplate{
                 return '<span class="alert alert-warning">'.get_option_fixed('aol_application_close_message', __('We are no longer accepting applications for this ad.', 'ApplyOnline')).'</span>';
             
             ?>
-            <form class="aol_app_form aol_app_form_<?php echo $post_id; ?>" name="aol_app_form" id="aol_app_form" enctype="multipart/form-data"  data-toggle="validator">
+            <form class="aol_app_form aol_app_form_<?php echo $post_id; ?>" name="aol_app_form" id="fileupload" enctype="multipart/form-data"  data-toggle="validator">
                 <?php
                     do_action('aol_before_form_fields', $post_id);
+                    echo '<div class="row">
+                            <div class="col-md-6">';
                     echo aol_form_generator($fields, 0, '_aol_app_', $post_id);
+                    echo '  </div>
+                           </div>';
                     do_action('aol_after_form_fields', $post_id);
 
-                    $aol_form_button = apply_filters('aol_form_button', array('id' => 'aol_app_submit_button', 'value' => __('Submit', 'ApplyOnline'), 'class' => 'jd-button-submit btn btn-org btn-submit button fusion-button button-large aol-form-button'));
+                    $aol_form_button = apply_filters('aol_form_button', array('id' => 'aol_app_submit_button', 'value' => __('APPLY NOW', 'ApplyOnline'), 'class' => 'btn btn-org col-md-3'));
                     $attributes = NULL;
 
 
@@ -201,9 +225,9 @@ class SinglePostTemplate{
                 <input type="hidden" name="ad_id" value="<?php echo $post_id; ?>" >
                 <input type="hidden" name="action" value="aol_app_form" >
                 <input type="hidden" name="wp_nonce" value="<?php echo wp_create_nonce( 'the_best_aol_ad_security_nonce' ) ?>" >
-                <div class="jd-buttons row col-lg-3 col-md-4 col-sm-12">
+                <div class="row col-lg-12 col-md-12 col-sm-12">
                     <input type="submit" <?php echo $attributes; ?> >
-                    <input type="reset" value="Cancel" onclick="window.location='<?php echo get_home_url(); ?>';" class="jd-button-cancel btn btn-outline-org">
+                    <input type="reset" value="CANCEL" onclick="window.location='<?php echo get_home_url(); ?>';" class="btn btn-outline-org ml-2 col-md-3">
                 </div>
                 <?php do_action('aol_after_submit_button', $post_id); ?>
             </form>
@@ -271,8 +295,7 @@ class SinglePostTemplate{
             }
             if(!is_singular($aol_types)) return $content;
             
-            
-            global $template; 
+            global $template;;
             $title_form = '<h3 class="aol-heading">'._x('Apply Online', 'public', 'ApplyOnline').'</h3>';
             $features = $this->ad_features($post->ID);
             $title_features = empty($features) ? NULL : '<h4 class="aol-heading-features">'.__('Salient Features', 'ApplyOnline').'</h4>';
@@ -281,6 +304,7 @@ class SinglePostTemplate{
             //Show this content if you are viewing aol_ad post type using single.php (not with single-aol_type.php)
             $aol_content;
             $this_template = substr(wp_basename($template), 7, -4);
+
             if(in_array($this_template, $aol_types) OR has_shortcode( $content, 'aol_form' )):
                 $aol_content = $content;
             else:
@@ -293,10 +317,7 @@ class SinglePostTemplate{
                 else {
                     $aol_content = '<div class="aol-single aol-wrapper">' . $content . $title_features . $features . '
                     <div class="jd-buttons">
-                    <a href="'.get_the_permalink($post).'&view=ap"  class="jd-button-apply button read-more btn btn-org float-right">Apply</a>
-                    <a  href="'.get_home_url().'" class="jd-button-back button read-more btn btn-outline-dark float-right ">Back</a>
-
-
+                    <a href="'.get_the_permalink($post).'&view=ap"  class=" btn btn-org btn-apply">APPLY NOW</a>
                     </div>';
                     $aol_content = apply_filters('aol_content', $aol_content, $content, $features, $form);
                 }
@@ -323,7 +344,7 @@ class Applyonline_Shortcodes{
         function aol( $atts ) {
             $archive_wraper_classes = apply_filters('aol_archive_wrapper_classes', array('aol-ad-outer-wrapper'));
             $wraper_classes = apply_filters('aol_ad_wrapper_classes', array('aol-ad-inner-wrapper'));
-            $wrapper_inner_classes = apply_filters('aol_ad_inner_wrapper_classes', array('panel', 'panel-default'));
+            $wrapper_inner_classes = apply_filters('aol_ad_inner_wrapper_classes', array('panel', 'panel-org-2'));
             $title_wrapper = apply_filters('aol_ad_title_wrapper', 'div');
             $title_classes = apply_filters('aol_ad_title_wrapper_classes', array('panel-org'));
             $body_classes = apply_filters('aol_ad_body_wrapper_classes', array('panel-body'));
@@ -391,7 +412,7 @@ class Applyonline_Shortcodes{
             do_action('aol_before_shortcode', $a, $filters);
 
             if(!(empty($filters) OR $a['filter'] == 'no' )){
-                echo '<div class="well-cus well-lg">';
+                echo '<div class="well-lg">';
                 echo '<form method="get" id="list-job-form"><input type="hidden"  /*name="page_id" value="'.intval($_GET['page_id']).'"*/><div class="row">';
                 foreach ($filters as $key => $filter){
                     $key = sanitize_key($key); //Key is element to fileter
@@ -413,8 +434,12 @@ class Applyonline_Shortcodes{
 
                 }
 
-                echo '<div class="col-md-5 col-sm-12"><input type="text" placeholder="Enter keywords" class="form-control" name="key" value="'.htmlspecialchars($_GET['key']).'"  style="height:10.2mm"></div>';
-                echo '<div class=" col-md-2 col-sm-12"><button class="fusion-button button btn btn-org btn-block aol-filter-button">'.__('Search', 'ApplyOnline').'</button></div>';
+                echo '<div class="col-md-12 col-sm-12 form-group has-search">
+                        <input type="text" placeholder="PHP, Java, French required,..." class="form-control " name="key" value="'.htmlspecialchars($_GET['key']).'"  style="height:10.2mm">
+                        <span class="fa fa-search form-control-feedback"></span>
+                     
+                        </div>';
+                echo '</div>';
                 //echo '<div class=" col-md-offset-2 col-md-4">'.get_search_form().'</div>';
                 echo '</div></form><div class="clearfix"></div>
             </div>';
@@ -462,10 +487,9 @@ class Applyonline_Shortcodes{
                                     case 'body_close':
                                         if($a['excerpt'] != 'no') ;
                                         echo '<div class="clearfix"></div>';
-                                        echo '<a  href="'.get_the_permalink($post).'&view=ok">'.get_the_title($post).'</a>';
+                                        echo '<a  href="'.get_the_permalink($post).'&view=ok" class="ml-4 col-sm-12 col-md-4">'.get_the_title($post).'</a>';
                                         echo '<div class="job-list-buttons"></div>';
-                                        echo '<a href="'.get_the_permalink($post).'&view=ap" ><button class="btn-lg button read-more btn btn-org float-right ">'.__( 'Apply', 'ApplyOnline' ).'</button></a>';
-                                        echo '<a href="'.get_the_permalink($post).'&view=ok" ><button class="btn-lg button read-more btn btn-outline-org float-right  " style="margin-right: 10px;">'.__( 'View', 'ApplyOnline' ).'</button></a>';
+                                        echo '<a href="'.get_the_permalink($post).'&view=ok"class="btn btn-org btn-shadow float-right col-md-4 col-sm-12 m-0">'.__( 'Apply', 'ApplyOnline' ).'</a>';
 
                                         echo "</div>"; //Boody Wrapper
                                         break;

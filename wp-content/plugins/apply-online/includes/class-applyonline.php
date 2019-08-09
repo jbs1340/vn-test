@@ -471,209 +471,299 @@ class Applyonline {
      var $uploads;
         
         public function __construct() {
-            add_action( 'wp_ajax_aol_app_form', array($this, 'aol_process_app_form') );
-            add_action( 'wp_ajax_nopriv_aol_app_form', array($this, 'aol_process_app_form') );
-            add_action( 'aol_form_errors', array($this, 'file_uploader'), 10, 10 ); //Call file uploader when form is being processed.
+            add_action('wp_ajax_aol_app_form', array($this, 'aol_process_app_form'));
+            add_action('wp_ajax_nopriv_aol_app_form', array($this, 'aol_process_app_form'));
+            add_action('wp_ajax_nopriv_upload_files', array($this, 'upload_files'));
+            add_action('wp_ajax_upload_files', array($this, 'upload_files'));
+            add_action('aol_form_errors', array($this, 'file_uploader'), 10, 10); //Call file uploader when form is being processed.
         }
-        
-        function upload_path($uploads){
-                $subdir = apply_filters('aol_upload_folder', 'applyonline');
-                //$default = wp_upload_dir(); $default['basedir'];
-                $aol_upload_path = get_option('aol_upload_path');
-                $uploads['path'] = wp_normalize_path($uploads['basedir'] . '/' . $subdir);
-                $uploads['subdir'] = wp_normalize_path( '/' . $subdir);
-                $uploads['url'] = $uploads['baseurl']. '/' . $subdir;
+     function upload_files()
+     {
+         if(isset($_FILES))
+         {   $files = $_FILES;
+             $file_id=null;
+             $file_path=null;
+             $file_name=null;
+             $tmp_name = null;
+             $name = null;
+             $errors = null;
+             $upload_size = get_option_fixed('aol_upload_max_size', 1);
+             $max_upload_size = $upload_size * 1000000 ; //Multiply by KBs
+//            var_dump($max_upload_size);die;
+             $file_types = get_option_fixed('aol_allowed_file_types', 'jpg,jpeg,png,pdf');
+             $status = null;
+             foreach ($files as $file)
+             {
+                 if ($max_upload_size < $file['size'][0]) {
+                     $errors = 'ERROR! File too large';
+                     $status = false;
+                 }
+                 elseif ( strstr($file_types, str_replace('image/', '',$file['type'][0])) === FALSE && strstr($file_types, str_replace('application/', '',$file['type'][0])) === FALSE)
+                 {
+                     $errors = 'ERROR! Invalidate type';
+                     $status = false;
+                 }
+                 else{
+                     $file_id = uniqid().microtime(true);
+                     $aol_upload_path = get_option('aol_upload_path');
+                     $subdir = apply_filters('aol_upload_folder', 'applyonline');
+                     $file_path = wp_normalize_path($aol_upload_path.'/'.$subdir.'/temp');
+                     $file_name = $file['name'][0];
 
-                if(!empty($aol_upload_path)){
-                    $uploads['basedir'] = $aol_upload_path;
-                    $uploads['path'] = wp_normalize_path($aol_upload_path . '/' . $subdir);
-                }
-                //print_r($uploads); die();
-                return $uploads;
-        }
-
-        function file_uploader($errors, $post, $files){
-            if(empty($files)) return $errors; //If no files are being uploaded, just quit.
-            
-            $upload_size = get_option_fixed('aol_upload_max_size', 1);
-            $max_upload_size = $upload_size*1048576*5; //Multiply by KBs
-
-            $file_types = get_option_fixed('aol_allowed_file_types', 'jpg,jpeg,png,doc,pdf');
-
-            $upload_overrides = array( 'test_form' => false );
-
-            /*Initialixing Variables*/
-            //$errors = new WP_Error();
-            $error_assignment = null;
-            
-            $uploads = array();
-            $user = get_userdata(get_current_user_id());
-        
-            if ( ! function_exists( 'wp_handle_upload' ) ) {
-                require_once( ABSPATH . 'wp-admin/includes/file.php' );
-            }
+                     if(!file_exists($file_path)){
+                         wp_mkdir_p($file_path);
+                     }
+                     $tmp_name = $file["tmp_name"][0];
+                     $name = basename($file_id.'-'.$file_name);
+                     move_uploaded_file($tmp_name, $file_path."/temp_cv_".$name);
+                     $status = true;
+                 }
+                 $response = array('files' => array('name'=>$name,'type'=>$file['type']['0'],'size'=>$file['size']['0']),'status'=>$status,'mess'=>$errors);
+             }
+         }
 
 
-            // Convert file array
-            $file_array = [];
-            $file_correct = [];
-            foreach($files as $key => $val) {
-                foreach ($val as $k => $v1) {
-                    foreach ($v1 as $i=>$v2) {
-//                        $key => array()
-                        $file_array[$i][$k] .= $v2;
-                    }
-                }
-                $file_correct = array($key => $file_array);
-            }
-//            var_dump($file_correct);
-            foreach($file_correct as $key => $value):
-                foreach ($value as $index=>$val) {
-                    $file_key = $key.$index;
-                    if (empty($val['name'])) continue;
-                    if ($max_upload_size < $val['size']) {
-                        $errors->add('max_size', sprintf(__('%s is oversized. Must be under %s MB', 'ApplyOnline'), $val['name'], $upload_size));
-                    }
 
-                    /* Check File Size */
-                    $file_type_match = 0;
-                    $filetype = wp_check_filetype($val['name']);
-                    $file_ext = strtolower($filetype['ext']);
-                    if (strstr($file_types, $file_ext) == FALSE) $errors->add('file_type', sprintf(__('Invalid file %s. Allowed file types are %s', 'ApplyOnline'), $val['name'], $file_types));
-                    $errors = apply_filters('aol_before_file_upload_errors', $errors);
-                    if (empty($errors->errors)) {
-                        do_action('aol_before_file_upload', $key, $val, $post);
+//        $subdir = apply_filters('aol_upload_folder', 'applyonline');
+//        //$default = wp_upload_dir(); $default['basedir'];
+//        $aol_upload_path = get_option('aol_upload_path');
+//        $uploads['path'] = wp_normalize_path($uploads['basedir'] . '/' . $subdir);
+//        $uploads['subdir'] = wp_normalize_path('/' . $subdir);
+//        $uploads['url'] =                     $uploadedfile['path'] = $file_path; . '/' . $subdir;
+//
+//        if (!empty($aol_upload_path)) {
+//            $uploads['basedir'] = $aol_upload_path;
+//            $uploads['path'] = wp_normalize_path($aol_upload_path . '/' . $subdir);
+//        }
+//        //print_r($uploads); die();
+//
+//
+//        $response['filename'] = $file_id;
+         header('Content-Type: application/json');
+         echo json_encode($response);
+         exit();
+     }
 
-                        add_filter('upload_dir', array($this, 'upload_path')); //Change upload path.
-                        $movefile = wp_handle_upload($val, $upload_overrides);
-                        if ($movefile && !isset($movefile['error'])) {
-                            $uploads[$file_key] = $movefile;
-                            $uploads[$file_key]['name'] = $val['name'];
-                            //update_user_meta(get_current_user_id(), $key, $movefile['url'] );
-                        } else {
-                            /**
-                             * Error generated by _wp_handle_upload()
-                             * @see _wp_handle_upload() in wp-admin/includes/file.php
-                             */
-                            $errors->add('file_move', $val['name'] . ': ' . $movefile['error']);
-                        }
-                    }
-                }
-            endforeach;
-        //return array('errors' => $errors, 'uploads' => $uploads);
-            $this->uploads = $uploads;
-//            var_dump($this->uploads);
-            return $errors;
-        }
-                        
-        public function aol_process_app_form(){
-            $nonce=$_POST['wp_nonce'];
-            if(!wp_verify_nonce($nonce, 'the_best_aol_ad_security_nonce')){
-                header( "Content-Type: application/json" );
-                echo json_encode( array( 'success' => false, 'error' => __( 'Session Expired, please try again', 'ApplyOnline' ) ));
-                exit;
-            }
 
-            /*Initializing Variables*/
-            $errors = new WP_Error();
-            $error_assignment = null;
-            
-            //Check for required fields
-            $form = apply_filters('aol_pre_form_validation', get_post_meta($_POST['ad_id']), $_POST, $_FILES); //Get parent ad value for which the application is being submitted.
-            $app_field = array();
-            foreach($form as $key => $val){
-                if(substr($key, 0, 9) == '_aol_app_'){
-                    
-                    $app_field = apply_filters('aol_pre_form_field_validation', unserialize($val[0]), $key, $val, $_POST);
-                    if(in_array($app_field['type'], array('separator', 'seprator', 'paragraph'))) continue; //Excludes seprator & paragraph from validation & verification
-                    //eMail validation
-                    if($app_field['type'] == 'email'){
-                        if(!empty($_POST[$key]) and is_email($_POST[$key])==FALSE) $errors->add('email', sprintf(__('%s is invalid.', 'ApplyOnline'), str_replace('_',' ', substr($key, 9))));
-                    }
-                    //File validation & verification.
-                    if($app_field['type'] == 'file'){
-                        if(!isset($_FILES[$key]['name'])) $errors->add('file', sprintf(__('%s is not a file.', 'ApplyOnline'), str_replace('_',' ', substr($key, 9))));
-                        if((int)$app_field['required'] == 1 and empty($_FILES[$key]['name'])) $errors->add('required', sprintf(__('%s is required.', 'ApplyOnline'), str_replace('_',' ', substr($key, 9))));
-                    }
-                    
-                    //chek required fields for non File Fields
-                    if((int)$app_field['required'] == 1 and $app_field['type'] != 'file'){
-                        $_POST[$key] = is_array($_POST[$key]) ? array_map(sanitize_text_field, $_POST[$key]) : sanitize_textarea_field($_POST[$key]);
-                        if(empty($_POST[$key])) $errors->add('required', sprintf (__('%s is required.', 'ApplyOnline'), str_replace('_',' ', substr($key, 9))) );
-                    }
-                }
-            }
+     function upload_path($uploads)
+     {
+         $subdir = apply_filters('aol_upload_folder', 'applyonline');
+         //$default = wp_upload_dir(); $default['basedir'];
+         $aol_upload_path = get_option('aol_upload_path');
+         $uploads['path'] = wp_normalize_path($uploads['basedir'] . '/' . $subdir);
+         $uploads['subdir'] = wp_normalize_path('/' . $subdir);
+         $uploads['url'] = $uploads['baseurl'] . '/' . $subdir;
+
+         if (!empty($aol_upload_path)) {
+             $uploads['basedir'] = $aol_upload_path;
+             $uploads['path'] = wp_normalize_path($aol_upload_path . '/' . $subdir);
+         }
+         //print_r($uploads); die();
+         return $uploads;
+     }
+
+     function file_uploader($errors, $post, $files)
+     {
+
+         $response = [];
+
+         $files = json_decode(stripslashes($files), true);
+
+         $aol_upload_path = get_option('aol_upload_path');
+         $subdir = apply_filters('aol_upload_folder', 'applyonline');
+
+         $file_path = wp_normalize_path($aol_upload_path.'/'.$subdir);
+
+         $today = date("Y-m-d");
+
+         $today_folder = $file_path . '/' . $today;
+
+
+//        $errors = new WP_Error();
+         $error_assignment = null;
+         if(!empty($files)) {
+             foreach ($files as $file) {
+
+                 if(!file_exists($today_folder)) {
+                     mkdir($today_folder, 0777);
+                 }
+                 $name = 'temp_cv_'.str_replace('..', '', $file['name']);
+                 $temp_file = $file_path . '/temp/' . $name;
+                 $new_file = $today_folder. '/' .$name;
+                 if(file_exists($temp_file)) {
+                     if(rename($temp_file, $new_file)) {
+                         $response[] = array(
+                             'file' => $new_file,
+                             'url' => site_url() . '/wp-content/uploads/' . $subdir . '/' . $today . '/' . $name,
+                             'type' => $file['type']
+                         );
+                     }
+                 }
+             }
+         }
+
+         return $response;
+//
+//        if (empty($files)) return $errors; //If no files are being uploaded, just quit.
+//        $upload_size = get_option_fixed('aol_upload_max_size', 1);
+//        $max_upload_size = $upload_size * 1048576 * 5; //Multiply by KBs
+//
+//        $file_types = get_option_fixed('aol_allowed_file_types', 'jpg,jpeg,png,doc,pdf');
+//
+//        $upload_overrides = array('test_form' => false);
+//
+//        /*Initialixing Variables*/
+//        //$errors = new WP_Error();
+//        $error_assignment = null;
+//
+//        $uploads = array();
+//        $user = get_userdata(get_current_user_id());
+//
+//        if (!function_exists('wp_handle_upload')) {
+//            require_once(ABSPATH . 'wp-admin/includes/file.php');
+//        }
+//
+//        // Convert file array
+//        $file_array = [];
+//        $file_correct = [];
+//        foreach ($files as $key => $val) {
+//            foreach ($val as $k => $v1) {
+//                foreach ($v1 as $i => $v2) {
+////                        $key => array()
+//                    $file_array[$i][$k] .= $v2;
+//                }
+//            }
+//            $file_correct = array($key => $file_array);
+//        }
+//        foreach ($file_correct as $key => $value):
+//            foreach ($value as $index => $val) {
+//                $file_key = $key . $index;
+//                if (empty($val['name'])) continue;
+//                if ($max_upload_size < $val['size']) {
+//                    $errors->add('max_size', sprintf(__('%s is oversized. Must be under %s MB', 'ApplyOnline'), $val['name'], $upload_size));
+//                }
+//
+//                /* Check File Size */
+//                $file_type_match = 0;
+//                $filetype = wp_check_filetype($val['name']);
+//                $file_ext = strtolower($filetype['ext']);
+//                if (strstr($file_types, $file_ext) == FALSE) $errors->add('file_type', sprintf(__('Invalid file %s. Allowed file types are %s', 'ApplyOnline'), $val['name'], $file_types));
+//                $errors = apply_filters('aol_before_file_upload_errors', $errors);
+//                if (empty($errors->errors)) {
+//                    do_action('aol_before_file_upload', $key, $val, $post);
+//
+//                    add_filter('upload_dir', array($this, 'upload_path')); //Change upload path.
+//                    $movefile = wp_handle_upload($val, $upload_overrides);
+//                    if ($movefile && !isset($movefile['error'])) {
+//                        $uploads[$file_key] = $movefile;
+//                        $uploads[$file_key]['name'] = $val['name'];
+//                        //update_user_meta(get_current_user_id(), $key, $movefile['url'] );
+//                    } else {
+//                        /**
+//                         * Error generated by _wp_handle_upload()
+//                         * @see _wp_handle_upload() in wp-admin/includes/file.php
+//                         */
+//                        $errors->add('file_move', $val['name'] . ': ' . $movefile['error']);
+//                    }
+//                }
+//            }
+//        endforeach;
+//        //return array('errors' => $errors, 'uploads' => $uploads);
+//
+//        $this->uploads = $uploads;
+//        return $errors;
+     }
+
+
+     public function aol_process_app_form()
+     {
+         $nonce = $_POST['wp_nonce'];
+         if (!wp_verify_nonce($nonce, 'the_best_aol_ad_security_nonce')) {
+             header("Content-Type: application/json");
+             echo json_encode(array('success' => false, 'error' => __('Session Expired, please try again', 'ApplyOnline')));
+             exit;
+         }
+
+         /*Initializing Variables*/
+         $errors = new WP_Error();
+         $error_assignment = null;
+
+         $files = $_POST['files'];
+
+         //Check for required fields
+         $form = apply_filters('aol_pre_form_validation', get_post_meta($_POST['ad_id']), $_POST); //Get parent ad value for which the application is being submitted.
+         $app_field = array();
+         foreach ($form as $key => $val) {
+             if (substr($key, 0, 9) == '_aol_app_') {
+
+                 $app_field = apply_filters('aol_pre_form_field_validation', unserialize($val[0]), $key, $val, $_POST);
+                 if (in_array($app_field['type'], array('separator', 'seprator', 'paragraph'))) continue; //Excludes seprator & paragraph from validation & verification
+                 //eMail validation
+                 if ($app_field['type'] == 'email') {
+                     if (!empty($_POST[$key]) and is_email($_POST[$key]) == FALSE) $errors->add('email', sprintf(__('%s is invalid.', 'ApplyOnline'), str_replace('_', ' ', substr($key, 9))));
+                 }
+
+                 //chek required fields for non File Fields
+                 if ((int)$app_field['required'] == 1 and $app_field['type'] != 'file') {
+                     $_POST[$key] = is_array($_POST[$key]) ? array_map(sanitize_text_field, $_POST[$key]) : sanitize_textarea_field($_POST[$key]);
+                     if (empty($_POST[$key])) $errors->add('required', sprintf(__('%s is required.', 'ApplyOnline'), str_replace('_', ' ', substr($key, 9))));
+                 }
+             }
+         }
 //            die;
-            $errors = apply_filters('aol_form_errors', $errors, $_POST, $_FILES); //You can hook 3rd party (i.e. add-ons) form errors here.
-            $error_messages = $errors->get_error_messages();
-            //$error_messages = array_merge($error_messages, $upload_error_messages);
-            
-            if(!empty($error_messages )){
-                $error_html = implode('<br />', $error_messages);
-                $response = json_encode( array( 'success' => false, 'error' => $error_html ));    // generate the response.
-                
-                // response output
-                header( "Content-Type: application/json" );
-                die($response);
-                exit;
-            } 
-            //End - Check for required fields            
-            foreach($this->uploads as $name => $file){
-//                var_dump($this->uploads);die;
-                $_POST[$name] = $file;
-            }
-
-            $args=  array(
-                'post_type'     =>'aol_application',
-                'post_content'  =>'',
-                'post_parent'   => $_POST['ad_id'],
-                'post_title'    =>get_the_title($_POST['ad_id']),
-                'post_status'   =>'publish',
-                'tax_input'     => array('aol_application_status' => 'pending'),
-                'meta_input'    => NULL,
-            );
-            do_action('aol_before_app_save', $_POST);
-            $args = apply_filters('aol_insert_app_data', $args, $_POST);
-            $pid = wp_insert_post($args);
-            $args['ID'] = $pid;
-            if($pid>0){
-                foreach($_POST as $key => $val):
+         $cv_files = apply_filters('aol_form_errors', $errors, $_POST, $files); //You can hook 3rd party (i.e. add-ons) form errors here.
+         $args = array(
+             'post_type' => 'aol_application',
+             'post_content' => '',
+             'post_parent' => $_POST['ad_id'],
+             'post_title' => get_the_title($_POST['ad_id']),
+             'post_status' => 'publish',
+             'tax_input' => array('aol_application_status' => 'pending'),
+             'meta_input' => NULL,
+         );
+         do_action('aol_before_app_save', $_POST);
+         $args = apply_filters('aol_insert_app_data', $args, $_POST);
+         $pid = wp_insert_post($args);
+         $args['ID'] = $pid;
+         if ($pid > 0) {
+             foreach ($_POST as $key => $val):
 //                    var_dump($_POST);
-                    if(substr($key,0,9) == '_aol_app_'){
-                        $val = is_array($val) ? array_map('wp_normalize_path', $val) : sanitize_textarea_field($val);
-                        update_post_meta($pid, $key, $val);
-                        $args['meta_input'][$key] = $val;
-                    }
-                endforeach;
-                $post = get_post($_POST['ad_id']);
-                update_post_meta($pid, 'aol_ad_id', $post->ID);
-                update_post_meta($pid, 'aol_ad_author', $post->post_author);
-                
-                wp_set_post_terms( $pid, 'pending', 'aol_application_status' );
+                 if (substr($key, 0, 9) == '_aol_app_') {
+                     $val = is_array($val) ? array_map('wp_normalize_path', $val) : sanitize_textarea_field($val);
+                     update_post_meta($pid, $key, $val);
+                     $args['meta_input'][$key] = $val;
+                 }
+             endforeach;
 
-                do_action('aol_after_app_save', $pid, $_POST);
-                
-                //Email notification
-                if( $args['post_status'] != 'draft') $this->application_email_notification($pid, $args, $this->uploads);
+             update_post_meta($pid, '_aol_app_cv_validate_cv', $cv_files);
 
-                $divert_page = get_option('aol_thankyou_page');
+             $post = get_post($_POST['ad_id']);
+             update_post_meta($pid, 'aol_ad_id', $post->ID);
+             update_post_meta($pid, 'aol_ad_author', $post->post_author);
 
-                empty($divert_page) ? $divert_link = null :  $divert_link = get_page_link($divert_page);
-                //$message = __('Form has been submitted successfully. If required, we will get back to you shortly!', 'ApplyOnline');
-                $message = get_option_fixed('aol_application_message', __('Form has been submitted successfully. If required, we will get back to you shortly!', 'ApplyOnline'));
-                $response = array( 'success' => true, 'divert' => $divert_link, 'hide_form'=>TRUE , 'message'=>$message );    // generate the response.
-            }
+             wp_set_post_terms($pid, 'pending', 'aol_application_status');
 
-            else $response = array( 'success' => false );    // generate the response.
+             do_action('aol_after_app_save', $pid, $_POST);
 
-            $response = apply_filters('aol_form_submit_response', $response, $_POST);
+             //Email notification
+             if ($args['post_status'] != 'draft') $this->application_email_notification($pid, $args, $this->uploads);
 
-            // response output
-            header( "Content-Type: application/json" );
-            echo json_encode($response);
+             $divert_page = get_option('aol_thankyou_page');
 
-            exit;
-        }
+             empty($divert_page) ? $divert_link = null : $divert_link = get_page_link($divert_page);
+             //$message = __('Form has been submitted successfully. If required, we will get back to you shortly!', 'ApplyOnline');
+             $message = get_option_fixed('aol_application_message', __('Form has been submitted successfully. If required, we will get back to you shortly!', 'ApplyOnline'));
+             $response = array('success' => true, 'divert' => $divert_link, 'hide_form' => TRUE, 'message' => $message);    // generate the response.
+         } else $response = array('success' => false);    // generate the response.
+
+         $response = apply_filters('aol_form_submit_response', $response, $_POST);
+
+         // response output
+         header("Content-Type: application/json");
+         echo json_encode($response);
+
+         exit;
+     }
         
         function application_email_notification($post_id, $post, $uploads){
             $post = (object)$post;
